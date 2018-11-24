@@ -1,0 +1,345 @@
+\documentclass[10pt]{article}
+
+\usepackage[letterpaper, left=1in, right=1in, top=1in, bottom=1in]{geometry}
+\usepackage{minted, color, setspace}
+\usepackage{titlesec}
+\usepackage{graphicx, subfigure}
+\usepackage{hyperref, url}
+
+\hypersetup{%
+    pdfsubject={LaTeX Document},
+    colorlinks=true,   % false: boxed links; true: colored links
+    linkcolor=blue,    % color of internal links
+    citecolor=blue,    % color of links to bibliography
+    urlcolor=blue,     % color of external links
+    unicode=false      % non-Latin characters in Acrobat's bookmarks
+}
+
+\makeatletter
+\def\maketitle{\begin{center}{\bfseries \Large ECE-C353 Systems Programming \\ \@title} \end{center}\vspace{10pt}}
+\makeatother
+
+\titleformat{\section}{\normalfont\bfseries}{}{5pt}{}
+\titlespacing{\section}{-5pt}{12pt plus 4pt minus 2pt}{0pt plus 2pt minus 2pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+
+\definecolor{lightgray}{rgb}{0.95,0.95,0.95}
+
+\title{Project 1 -- Writing a Basic Shell}
+
+\begin{document}
+\maketitle
+
+\section{The Big Idea}
+
+In this assignment you will be developing a user shell (i.e. command
+line interface) similar to \texttt{bash}.  Upon completion, your shell
+must be able to perform the following operations:
+
+\begin{itemize}
+    \item Display the current working directory within the prompt
+        (before the dollar sign).
+
+\begin{minted}[bgcolor=lightgray]{text}
+/home/jshack/pssh$
+\end{minted}
+
+    \item Run a single command with optional input and output
+        redirection.  Command line arguments must be supported.
+
+\begin{minted}[bgcolor=lightgray]{bash}
+/home/jshack/pssh$ ./my_prog arg1 arg2 arg3
+/home/jshack/pssh$ ls -l > directory_contents.txt
+/home/jshack/pssh$ grep -n "test" < input.txt > output.txt
+\end{minted}
+
+    \item Run multiple pipelined commands with optional input and output
+        redirection. Naturally, command line arguments to programs must
+        still be supported.
+
+\begin{minted}[bgcolor=lightgray]{bash}
+/home/jshack/pssh$ ./my_prog arg1 arg2 arg3 | wc -l > out.txt
+/home/jshack/pssh$ ls -lh | awk '{print $9 " is " $5}'
+/home/jshack/pssh$ ps aux | grep bash | grep -v grep | awk '{print $2}'
+\end{minted}
+
+    \item Implement the builtin command `\texttt{exit}', which will
+        terminate the shell.
+
+\begin{minted}[bgcolor=lightgray]{bash}
+/home/jshack/pssh$ exit
+\end{minted}
+
+    \item Implement the builtin command `\texttt{which}'. This command
+        accepts 1 parameter (a program name), searches the system
+        \texttt{PATH} for the program, and prints its full path to
+        \texttt{stdout} if found (or simply nothing if it is not found).
+        If a fully qualified path or relative path is supplied to an
+        executable program, then that path should simply be printed to
+        \texttt{stdout}.  If the supplied program name is another
+        builtin command, your shell should indicate that in a message
+        printed to \texttt{stdout}. The behavior should be identical to
+        \texttt{bash}'s builtin \texttt{which} command.
+
+\begin{minted}[bgcolor=lightgray]{text}
+/home/jshack/pssh$ which ls
+/bin/ls
+/home/jshack/pssh$ which lakjasdlkfjasdlkfj
+/home/jshack/pssh$ which exit
+exit: shell built-in command
+/home/jshack/pssh$ which which
+which: shell built-in command
+/home/jshack/pssh$ which man
+/usr/bin/man
+\end{minted}
+
+\end{itemize}
+
+
+\section{The Parser}
+
+Writing a command line shell is obviously going to require that you be
+able to parse the text the user types into the prompt into a more
+meaningful structure that is easier for you (the developer) to handle.
+Since text processing is not the major focus of this course (hint: it's
+actually systems programming), I have provided you with a parser as well
+as a basic skeleton for your shell program.  I call this shell program
+skeleton the \textbf{Pretty Simple SHell (pssh)}.  The main input loop
+looks like this:
+
+\begin{minted}[bgcolor=lightgray]{c}
+...
+#define DEBUG_PARSE 0
+...
+    while (1) {
+        cmdline = readline (build_prompt());
+        if (!cmdline)       /* EOF (ex: ctrl-d) */
+            exit (EXIT_SUCCESS);
+
+        P = parse_cmdline (cmdline);
+        if (!P)
+            goto next;
+
+        if (P->invalid_syntax) {
+            printf ("pssh: invalid syntax\n");
+            goto next;
+        }
+
+#if DEBUG_PARSE
+        parse_debug (P);
+#endif
+        execute_tasks (P);
+
+    next:
+        parse_destroy (&P);
+        free(cmdline);
+    }
+...
+\end{minted}
+
+As you can see, our command line shell reads input from the user one
+line at a time via \texttt{readline()}, which returns a \texttt{char*}
+pointing to memory allocated on the heap containing a \texttt{NULL}
+terminated string of what the user typed in before hitting Enter.  This
+is passed to the provided \texttt{parse\_cmdline()} API function I have
+provided to you.  The implementation can be found in \texttt{parse.c}
+and the API function declarations can be found in \texttt{parse.h}.  The
+\texttt{parse\_cmdline()} API returns a \texttt{Parse*}, which points to
+heap memory.  The \texttt{Parse} structure is defined in
+\texttt{parse.h} as follows:
+
+\begin{minted}[bgcolor=lightgray]{c}
+typedef struct {
+    Task* tasks;         /* ordered list of tasks to pipe */
+    int   ntasks;        /* # of tasks in the parse */
+
+    char* infile;        /* filename of 'infile'  */
+    char* outfile;       /* filename of 'outfile' */
+
+    int background;      /* run process in background? */
+    int invalid_syntax;  /* parse failed */
+} Parse;
+\end{minted}
+
+as is the \texttt{Task} structure:
+
+\begin{minted}[bgcolor=lightgray]{c}
+typedef struct {
+    char* cmd;
+    char** argv;   /* NULL terminated array of strings */
+} Task;
+\end{minted}
+
+As you can see, the \texttt{Parse} data structure contains all of the
+parsed information from a command line with following anatomy:
+
+\begin{minted}[bgcolor=lightgray]{text}
+command_1 [< infile] [| command_n]* [> outfile] [&]
+\end{minted}
+
+where:
+
+\begin{itemize}
+    \item Items in brackets [ ] are optional
+    \item Items in starred brackets [ ]* are optional but can be repeated
+    \item Non-bracketed items are required
+\end{itemize}
+
+In other words, I have done all the ``hard work'' for you.  Your job
+will simply to be to take a \texttt{Parse} structure and implement all
+of the process creation and management logic generally provided by a
+shell.  In order to make it obvious how to work with a \texttt{Parse}
+structure, I have provided the \texttt{parse\_debug()} API function,
+which simple prints the contents of a \texttt{Parse} to the screen.
+Your job, for this project, largely involves writing logic for the
+provided \texttt{execute\_tasks()} function in \texttt{pssh.c}.  I
+recommend you start by simply getting the execution of single commands
+working.
+
+
+\section{Executing Single Commands}
+
+Naturally, this is a simple \texttt{vfork()} and \texttt{exec()}
+problem.  Get this working first.  Also, remember that \texttt{exec()}
+is not a real function, but is rather a term used to refer to the family
+of \texttt{exec} functions: \texttt{execl(), execlp(), execle(),
+execv(), execvp(), execvpe()}.  Read the manual page for exec to figure
+out which one you want to use!
+
+\begin{minted}[bgcolor=lightgray]{bash}
+~$ man exec
+\end{minted}
+
+Once your \texttt{pssh} is capable of executing simple commands with
+arguments, such as:
+
+\begin{minted}[bgcolor=lightgray]{bash}
+$ ls -l
+\end{minted}
+
+you need to add support for input and output redirection using the
+\texttt{<} and \texttt{>} command line operators... just like in
+\texttt{bash}!  This is actually easier than in seems.  Hint: you will
+need to modify the file descriptors tables.  Once you have this working,
+you will be able to do great things like:
+
+\begin{minted}[bgcolor=lightgray]{bash}
+$ ls -l > directory.txt
+$ grep "some phrase" < somefile.txt
+\end{minted}
+
+Great job!  Next step is connecting multiple commands together with
+pipes!
+
+
+\section{Executing Multiple Pipelined Commands}
+
+This is actually very similar to what we did in lecture using the
+\texttt{dup2()} system call.  In fact, it is nearly exactly the
+same--just far more practical.  Not much needs to be said here other
+than that, unlike our example in lecture, you must be able to pipeline
+more than just two processes -- you must pipeline all of the commands in
+the \texttt{tasks} array found in the \texttt{Parse} structure.
+
+
+\section{Adding the Built-in Commands}
+
+Since it simply ends the \texttt{pssh} process, the built-in command
+\texttt{exit} is going to be the easiest.  Implement that first.  Now,
+the \texttt{which} command is going to be a little bit more complicated.
+I recommend looking at the \texttt{command\_found()} function in
+\texttt{pssh.c} and use that as a working base.  Also, be sure to read
+the manual page for the \texttt{access()} system call:
+
+\begin{minted}[bgcolor=lightgray]{text}
+~$ man access
+\end{minted}
+
+Keep in mind that, with the exception of \texttt{exit}, any built-in
+command should support input and output redirection.  For example, the
+following should work:
+
+\begin{minted}[bgcolor=lightgray]{text}
+$ which man > man_location.txt
+$ cat man_location.txt
+/usr/bin/man
+\end{minted}
+
+This may sound more challenging than it actually is.  Did you figure it
+out?
+
+\section{Building the Code}
+
+The provided code uses a \texttt{Makefile} to help build the code.  All
+you need to do to build the program is run the \texttt{make} command
+within the source directory:
+
+\begin{minted}[bgcolor=lightgray]{text}
+~/src/pssh$ ls
+builtin.c  Makefile  parse.h
+builtin.h  parse.c   pssh.c
+~/src/pssh$ make
+gcc -g -Wall -c builtin.c -o builtin.o
+gcc -g -Wall -c parse.c -o parse.o
+gcc -g -Wall -c pssh.c -o pssh.o
+gcc  builtin.o  parse.o  pssh.o -Wall -lreadline -o pssh
+~/src/pssh$ ls
+builtin.c  Makefile  parse.o  pssh.o
+builtin.h  parse.c   pssh
+builtin.o  parse.h   pssh.c
+\end{minted}
+
+and just like that, all of the necessary steps to produce the
+\texttt{pssh} executable will be automatically ran.  If you want to
+delete all of the intermediate object files and the \texttt{pssh}
+executable, simply run \texttt{make clean} within the source directory:
+
+\begin{minted}[bgcolor=lightgray]{text}
+~/src/pssh$ ls
+builtin.c  Makefile  parse.o  pssh.o
+builtin.h  parse.c   pssh
+builtin.o  parse.h   pssh.c
+~/src/pssh$ make clean
+rm -f *.o
+rm -f pssh
+~/src/pssh$ ls
+builtin.c  Makefile  parse.h
+builtin.h  parse.c   pssh.c
+\end{minted}
+
+\pagebreak
+
+\section{Submitting Your Project}
+
+Once you have implemented all of the required features described in this
+document submit your code by doing the following:
+
+\begin{itemize}
+    \item Run \texttt{make clean} in your source directory.  We must be
+        able to built your shell from source and we don't want your
+        precompiled executables of intermediate object files.
+        \textbf{If your code does not at the very least compile, you
+        will receive a zero.}
+
+    \item Zip up your code.
+
+    \item Name your zip file \texttt{abc123\_pssh.zip}, where abc123 is
+        your Drexel ID.
+
+    \item Upload your zip file using the Blackboard Learn submission
+        link found on the course website.
+\end{itemize}
+
+\textbf{Failure to follow these simple steps will result in your project
+not being graded.}
+
+Now, have fun!
+
+\begin{center}
+\vspace{12pt}
+\textbf{Due in 2 Weeks: Thursday, Feb 1st \emph{before} midnight.}
+\end{center}
+
+\end{document}

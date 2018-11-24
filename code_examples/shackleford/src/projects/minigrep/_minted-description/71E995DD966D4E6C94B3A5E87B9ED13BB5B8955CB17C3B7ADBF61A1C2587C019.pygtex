@@ -1,0 +1,4 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYGZdl{} ./minigrep
+\PYG{l+s+se}{\PYGZbs{}n}oindent \PYG{l+s+se}{\PYGZbs{}t}exttt\PYG{o}{\PYGZob{}}\PYG{l+s+se}{\PYGZbs{}\PYGZdl{}} ./minigrep \PYGZhy{}S . shack\PYG{o}{\PYGZcb{}}
+\end{Verbatim}

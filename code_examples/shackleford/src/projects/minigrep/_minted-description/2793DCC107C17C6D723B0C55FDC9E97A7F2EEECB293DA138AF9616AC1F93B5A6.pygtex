@@ -1,0 +1,9 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYGdefaultZdl{} ./minigrep
+Usage: ./minigrep mode path string
+
+    mode    \PYGdefaultZhy{}   either \PYGdefaultZhy{}S for single thread or \PYGdefaultZhy{}P for pthreads
+    path    \PYGdefaultZhy{}   recursively scan all files in this path and report
+                   all occurances of string
+    string  \PYGdefaultZhy{}   scan files for this string
+\end{Verbatim}

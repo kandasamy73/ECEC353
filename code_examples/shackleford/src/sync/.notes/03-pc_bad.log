@@ -1,0 +1,31 @@
+$ time ./03-pc_bad
+
+consumer -- processed 1 work units
+consumer -- processed 5 work units
+consumer -- processed 1 work units
+consumer -- processed 1 work units
+consumer -- processed 1 work units
+
+      [OUTPUT TRUNCATED]
+
+consumer -- processed 1 work units
+consumer -- processed 1 work units
+consumer -- processed 2 work units
+consumer -- processed 1 work units
+consumer -- processed 1 work units
+consumer -- processed 3 work units
+consumer -- processed 1 work units
+  Work unit sum: 49995000
+Expected result: 49995000
+
+real    0m2.092s
+user    0m2.023s
+sys     0m0.318s
+
+
+
+-------------------------------------------------------------------------------
+Notice the real time (wallclock time) is about the same as 03-pc_cv, but
+the user time (non-kernel CPU time) is about 48x larger.  Kernel time is about
+the same for both versions.  This is because the consumer thread never yields
+the CPU by blocking for the condition variable.

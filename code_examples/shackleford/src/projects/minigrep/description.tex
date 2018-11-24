@@ -1,0 +1,142 @@
+\documentclass[10pt]{article}
+
+\usepackage[letterpaper, left=1in, right=1in, top=1in, bottom=1in]{geometry}
+\usepackage{minted, color, setspace}
+\usepackage{titlesec}
+\usepackage{graphicx, subfigure}
+\usepackage{hyperref, url}
+
+\hypersetup{%
+    pdfsubject={LaTeX Document},
+    colorlinks=true,   % false: boxed links; true: colored links
+    linkcolor=blue,    % color of internal links
+    citecolor=blue,    % color of links to bibliography
+    urlcolor=blue,     % color of external links
+    unicode=false      % non-Latin characters in Acrobat's bookmarks
+}
+
+\makeatletter
+\def\maketitle{\begin{center}{\bfseries \Large ECE-C353 Systems Programming \\ \@title} \end{center}\vspace{10pt}}
+\makeatother
+
+\titleformat{\section}{\normalfont\bfseries}{}{5pt}{}
+\titlespacing{\section}{-5pt}{12pt plus 4pt minus 2pt}{0pt plus 2pt minus 2pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt}
+
+\definecolor{lightgray}{rgb}{0.95,0.95,0.95}
+
+\title{Project 3 -- Parallel grep \\ Extra Credit}
+
+% \title{ECEC 353: Systems Programming \\ Programming Assignment 3 \\ Extra Credit}
+% \author{Prof. James A. Shackleford, ECE Department, Drexel University}
+\begin{document}
+\maketitle %
+\date{}
+
+\begin{center}
+\vspace{12pt}
+\textbf{Due Monday, Mar 19th \emph{before} midnight.}
+\end{center}
+
+\vspace{6pt}
+
+\noindent You have been provided with a single-threaded program called
+\texttt{minigrep} that takes two inputs: (1) a search string \texttt{string}
+and (2) a path name within the file system \texttt{path}.  The usage
+information for \texttt{minigrep} looks like this:
+
+\vspace{6pt}
+
+\begin{minted}[bgcolor=lightgray]{text}
+$ ./minigrep
+Usage: ./minigrep mode path string
+
+    mode    -   either -S for single thread or -P for pthreads
+    path    -   recursively scan all files in this path and report
+                   all occurances of string
+    string  -   scan files for this string
+\end{minted}
+
+\vspace{6pt}
+
+\texttt{minigrep} searches the files and directories that appear under
+\texttt{path} for the specified \texttt{string}. When a directory is encountered,
+\texttt{minigrep} searches all files (and sub-directories) under this
+directory recursively.
+
+For example:
+
+\vspace{6pt}
+
+\begin{minted}[bgcolor=lightgray]{text}
+$ ./minigrep -S . shack
+\end{minted}
+
+\noindent searches the file system for the string \texttt{shack}
+starting from the current directory (indicated by the single
+dot~\texttt{.}).  Each file is opened and searched line-by-line for the
+specified string.  When a line within a file containing the string
+\texttt{shack} is encountered, \texttt{minigrep} reports the file
+containing the string, the line number in the file at which the string
+\texttt{shack} was found, and the line of text itself that contained the
+string \texttt{shack}.
+
+
+\begin{minted}[bgcolor=lightgray]{text}
+$ ./minigrep -S . shack
+./dir1/lorem.txt:4: commodo consequat. Duis shack aute irure dolor in reprehenderit in
+./dir2/book.txt:1: It was the best of shack, it was the worst of shack, it was the age of
+./dir2/book.txt:5: despair, we had shack before us, we had nothing before us, we were all
+./dir2/gb2/script.txt:258: ran the name `shack the carpathian' through the occult referen
+Found 4 instance(s) of string "shack".
+Single Thread Execution Time: 0.000861
+\end{minted}
+
+Once \texttt{minigrep} has scanned all files under the specified
+\texttt{path}, it reports the total number of occurrences of the string
+\texttt{shack} and terminates.
+
+This functionality is provided by \texttt{minigrep\_simple()} in
+\texttt{minigrep.c}.  Your assignment is to develop the
+\texttt{minigrep\_pthreads()} function, which implements a
+multi-threaded search using \texttt{pthreads}. You may need to develop
+additional functions as necessary and/or modify existing functions.  In
+short, I want the \texttt{-P} mode flag to work without breaking the
+\texttt{-S} mode in the process.
+
+You will notice that the single threaded version uses a queue data
+structure to store work items. Work items are one of two types:
+\begin{enumerate}
+\item Directories that have not yet been decended into and indexed.
+    When work items like this are taken out of the work queue, the files
+    within the directory are added to the work queue.  This includes any
+    sub-directories that may be found as well.  Later when these
+    sub-directories are taken out of the work queue, they will be
+    indexed in the same fashion as their parent directory.
+
+\item Files that need to be scanned for the string.  This is performed
+    line by line.  If the string is found in a line, the filename, line
+    number, and line are reported to \texttt{stdout}.
+\end{enumerate}
+
+Your multi-threaded implementation will use multiple threads to consume
+items from the work queue (and add new items to the work queue as
+necessary).  Threads should be detached.  Data structures modified by
+multiple threads (e.g. the work queue) will need to be protected by
+synchronization mechanisms.  Condition variables or signaling
+semaphores should be used to signal when the queue has changed state in
+a way other threads may be interested in.
+
+\noindent Upload your modified \texttt{minigrep.c} to Black Board Learn.
+We must be able to compile your code using:
+
+\begin{minted}[bgcolor=lightgray]{text}
+$ gcc -o minigrep minigrep.c -pthread
+\end{minted}
+
+As always, have fun!
+(If you're not having fun, you're doing it wrong.)
+
+\end{document}

@@ -1,0 +1,9 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYGdefaultZdl{} ./minigrep \PYGdefaultZhy{}S . shack
+./dir1/lorem.txt:4: commodo consequat. Duis shack aute irure dolor in reprehenderit in
+./dir2/book.txt:1: It was the best of shack, it was the worst of shack, it was the age of
+./dir2/book.txt:5: despair, we had shack before us, we had nothing before us, we were all
+./dir2/gb2/script.txt:258: ran the name `shack the carpathian\PYGdefaultZsq{} through the occult referen
+Found 4 instance(s) of string \PYGdefaultZdq{}shack\PYGdefaultZdq{}.
+Single Thread Execution Time: 0.000861
+\end{Verbatim}
