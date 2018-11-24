@@ -1,7 +1,10 @@
 /* A simple "hello world" program. 
  * 
  * The program takes two integers provided to it as command-line arguments, adds them, and displays the result.
- * 
+ *
+ * Author: Naga Kandasamy
+ * Date modified: 24 November, 2018
+ *
  * Compile as: gcc -o hello_world hello_world.c -std=c99 -Wall 
  * 
  * */
